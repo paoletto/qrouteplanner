@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>PluginManager.qml</file>
+        <file>close.png</file>
+        <file>open.png</file>
+        <file>grayMarker.png</file>
+        <file>greenMarker.png</file>
+        <file>redMarker.png</file>
+    </qresource>
+</RCC>
