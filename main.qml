@@ -142,8 +142,14 @@ ApplicationWindow {
                 text: "Show Segments"
                 checkable: true
                 checked: false
+            }
+            MenuItem {
+                id: showFullRouteInstructions
+                text: "Show Full Route Instructions"
+                checkable: true
+                checked: false
                 onToggled: {
-
+                    routeInfoModel.updateRoute()
                 }
             }
         }
@@ -313,6 +319,7 @@ ApplicationWindow {
         id: middleMarkerModel
         onRowsInserted: dataHasChanged()
         onRowsRemoved: dataHasChanged()
+        onDataChanged: dataHasChanged()
 
         ListElement { // TQtC Berlin, Rudower Chaussee
             latitude: 52.43205
@@ -385,7 +392,8 @@ ApplicationWindow {
                     id: greenMarker
                     source: "qrc:///greenMarker.png"
                 }
-                coordinate : QtPositioning.coordinate(51.34335, 12.37949) // Leipzig Richard Wagner Strasse
+                //coordinate : QtPositioning.coordinate(51.34335, 12.37949) // Leipzig Richard Wagner Strasse
+                coordinate: QtPositioning.coordinate(53.2621052,15.4868928)
                 visible: true
                 opacity: 1.0
                 anchorPoint.x: greenMarker.width/2
@@ -430,6 +438,10 @@ ApplicationWindow {
                                 return
                             middleMarkerModel.remove(index)
                         }
+                        drag.target: parent
+                    }
+                    onCoordinateChanged: {
+                        middleMarkerModel.set(index, { latitude: coordinate.latitude, longitude: coordinate.longitude})
                     }
                 }
             }
@@ -470,8 +482,10 @@ ApplicationWindow {
                         model: route.segments
                         Component.onCompleted: {
                             console.log(route)
+                            console.log(route.legs)
                             console.log(route.distance)
                             console.log(route.segments)
+                            console.log(route.segments.length)
                         }
                         delegate: MapPolyline {
                             path: modelData.path
@@ -482,9 +496,22 @@ ApplicationWindow {
                 }
             }
 
+//            MapItemView {
+//                id: routeViewOrig
+//                model: routeModel
+//                visible: !showSegs.checked
+////                visible: false
+//                delegate: MapRoute {
+//                    route: routeData
+//                    line.color: 'blue'
+//                    line.width: 7
+//                }
+//            }
+
             MapItemView {
                 id: routeView
                 visible: !showSegs.checked
+//                visible: false
                 model: routeModel
                 delegate: Component {
                     MapItemView {
@@ -551,7 +578,8 @@ ApplicationWindow {
             }
             onModelReset: {
                 route = get(0)
-                console.log("ROUTES: ",rModel.count)
+                console.log(" ====ROUTES====: ",rModel.count)
+                console.log(route.segments.length)
             }
         }
     }
@@ -613,8 +641,8 @@ ApplicationWindow {
             if (routeModel.count > 0) {
                 var currentTime = new Date();
                 var route = routeModel.get(0)
-                var legs = route.legs
-                if (!legs.length) {
+                var legs = (route.hasOwnProperty("legs")) ? route.legs : []
+                if (!legs.length || showFullRouteInstructions.checked) {
                     routeInfoModel.append({
                         "type" : "header",
                         "header": "\n=== FULL ROUTE ===\n"
@@ -622,7 +650,7 @@ ApplicationWindow {
                     for (var i = 0; i < route.segments.length; i++) {
                         routeInfoModel.append({
                             "type" : "instruction",
-                            "instruction": routeModel.get(0).segments[i].maneuver.instructionText,
+                            "instruction": routeModel.get(0).segments[i].maneuver.instructi|onText,
                             "distance": formatDistance(routeModel.get(0).segments[i].maneuver.distanceToNextInstruction)
                         });
 
@@ -642,11 +670,18 @@ ApplicationWindow {
                             "header": "\n=== LEG "+ leg.legIndex +" ===\n"
                         });
                         for (var i = 0; i < leg.segments.length; i++) {
+                            var segment = leg.segments[i]
                             routeInfoModel.append({
                                 "type" : "instruction",
-                                "instruction": leg.segments[i].maneuver.instructionText,
-                                "distance": formatDistance(leg.segments[i].maneuver.distanceToNextInstruction)
+                                "instruction": segment.maneuver.instructionText,
+                                "distance": formatDistance(segment.maneuver.distanceToNextInstruction)
                             });
+
+//                            var keys = segment.maneuver.extendedAttributes.keys()
+//                            //var keys = Object.keys(routeModel.get(0).segments[i].maneuver.extendedAttributes)
+//                            for (var k = 0; k< keys.length; k++)
+//                                console.log(keys[k], segment.maneuver.extendedAttributes[keys[k]])
+//                            console.log();
                         }
                     }
                 }
