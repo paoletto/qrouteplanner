@@ -7,5 +7,6 @@
         <file>grayMarker.png</file>
         <file>greenMarker.png</file>
         <file>redMarker.png</file>
+        <file>PositionMarker.qml</file>
     </qresource>
 </RCC>

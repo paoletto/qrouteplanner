@@ -38,7 +38,7 @@
 **
 ****************************************************************************/
 
-import QtQuick 2.5
+import QtQuick 2.12
 import QtQuick.Controls 1.4
 import QtQuick.Controls.Styles 1.4
 import QtQuick.Layouts 1.3
@@ -141,7 +141,13 @@ ApplicationWindow {
                 id: showSegs
                 text: "Show Segments"
                 checkable: true
-                checked: false
+                checked: true
+            }
+            MenuItem {
+                id: showManeuvers
+                text: "Show Maneuvers"
+                checkable: true
+                checked: true
             }
             MenuItem {
                 id: showFullRouteInstructions
@@ -252,8 +258,8 @@ ApplicationWindow {
     }
 
     function createMap(plugin, mapTypeName) {
-        var zl = 5.5;
-        var center = QtPositioning.coordinate(55.5, 11.5)//(50.849019, 4.352350)
+        var zl = 11.5;
+        var center = QtPositioning.coordinate(52.43205,13.5334313) //QtPositioning.coordinate(55.5, 11.5)//(50.849019, 4.352350)
         var availableMapTypes;
         if (map) {
             zl = map.zoomLevel
@@ -353,6 +359,7 @@ ApplicationWindow {
                 }
                 routeQuery.addWaypoint(endCrd)
                 debugRouteQuery(routeQuery)
+                routeModel.update();
             }
 
             MouseArea {
@@ -364,51 +371,6 @@ ApplicationWindow {
                 }
             }
 
-            MapQuickItem {
-                id: startMarker
-                sourceItem: Image {
-                    id: redMarker
-                    source: "qrc:///redMarker.png"
-                }
-                coordinate : QtPositioning.coordinate(59.9485, 10.7686)
-                visible: true
-                opacity: 1.0
-                anchorPoint.x: redMarker.width/2
-                anchorPoint.y: redMarker.height
-                MouseArea  {
-                    id: startMarkerMouseArea
-                    drag.target: parent
-                    anchors.fill: parent
-                }
-
-                onCoordinateChanged: {
-                    updateRoute()
-                }
-            }
-
-            MapQuickItem {
-                id: endMarker
-                sourceItem: Image {
-                    id: greenMarker
-                    source: "qrc:///greenMarker.png"
-                }
-                //coordinate : QtPositioning.coordinate(51.34335, 12.37949) // Leipzig Richard Wagner Strasse
-                coordinate: QtPositioning.coordinate(53.2621052,15.4868928)
-                visible: true
-                opacity: 1.0
-                anchorPoint.x: greenMarker.width/2
-                anchorPoint.y: greenMarker.height
-                MouseArea  {
-                    id: endMarkerMouseArea
-                    drag.target: parent
-                    anchors.fill: parent
-                }
-
-                onCoordinateChanged: {
-                    updateRoute()
-                }
-            }
-
             MouseArea {
                 id: mapMouseArea
 
@@ -417,34 +379,6 @@ ApplicationWindow {
                 }
             }
 
-            MapItemView {
-                id: middleMarkerView
-                model: middleMarkerModel
-                delegate: MapQuickItem {
-                    id: midMarker
-                    sourceItem: Image {
-                        id: grayMarker
-                        source: "qrc:///grayMarker.png"
-                    }
-                    coordinate : QtPositioning.coordinate(latitude, longitude)
-                    anchorPoint.x: grayMarker.width/2
-                    anchorPoint.y: grayMarker.height
-                    MouseArea  {
-                        id: middleMarkerMouseArea
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        anchors.fill: parent
-                        onDoubleClicked: {
-                            if (mouse.button & Qt.RightButton)
-                                return
-                            middleMarkerModel.remove(index)
-                        }
-                        drag.target: parent
-                    }
-                    onCoordinateChanged: {
-                        middleMarkerModel.set(index, { latitude: coordinate.latitude, longitude: coordinate.longitude})
-                    }
-                }
-            }
 
 //            MapItemView {
 //                id: routeView
@@ -479,27 +413,140 @@ ApplicationWindow {
                     MapItemView {
                         id: segsView
                         property var route: routeData
-                        model: route.segments
-                        Component.onCompleted: {
-                            console.log(route)
-                            console.log(route.legs)
-                            console.log(route.distance)
-                            console.log(route.segments)
-                            console.log(route.segments.length)
-                        }
-                        delegate: MapPolyline {
-                            path: modelData.path
-                            line.color: vecBrewer12[index % 12 ]
-                            line.width: 7
+                        model: (showSegs.checked) ? route.segments : null
+//                        Component.onCompleted: {
+//                            console.log(route)
+//                            console.log(route.legs)
+//                            console.log(route.distance)
+//                            console.log(route.segments)
+//                            console.log(route.segments.length)
+//                        }
+                        delegate: MapItemGroup {
+                                id: mig
+
+                                property var path: modelData.path
+                                property var color: vecBrewer12[index % 12 ]
+                                property var maneuver: modelData.maneuver
+                                property var coordinate: (maneuver !== null) ? maneuver.position : null
+                                property var instructionText: (maneuver !== null)
+                                                              ? maneuver.instructionText + "(" + formatDistance(maneuver.distanceToNextInstruction) + ")"
+                                                              : ""
+
+                                MapPolyline {
+                                    path: parent.path
+                                    line.color: parent.color
+                                    line.width: 7
+
+                                }
+                                MapQuickItem {
+                                    visible: showManeuvers.checked
+                                    sourceItem: Rectangle {
+                                        id: rct
+                                        width: 96
+                                        height: 24
+//                                        width: 192
+//                                        height: 48
+                                        color: "transparent"
+                                        border.color: "transparent"
+                                        property var markerColor:  mig.color
+                                        PositionMarker {
+                                            id: mrkr
+                                            anchors.left: parent.left
+                                            height: parent.height
+                                            width: height
+                                            color: parent.markerColor
+
+//                                            id: mrkr
+//                                            tipSize: 1
+//                                            rotation: 180
+//                                            transformOrigin: Item.Center
+//                                            anchors.left: parent.left
+//                                            width: height
+//                                            height: parent.height
+//                                            color: parent.markerColor
+//                                            tip: true
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                onPressed: recInstruction.visible = true
+                                                onReleased: recInstruction.visible = false
+                                                onFocusChanged: recInstruction.visible = false
+                                            }
+//                                            TapHandler {
+//                                                onPressedChanged: {
+//                                                    if (pressed)
+//                                                        recInstruction.visible = true
+//                                                    else
+//                                                        recInstruction.visible = false
+//                                                }
+//                                            }
+                                        }
+                                        Rectangle {
+                                            id: recInstruction
+                                            anchors.right: parent.right
+                                            height: parent.height
+                                            width: parent.width - mrkr.width
+                                            color: "transparent"
+                                            border.color: 'firebrick'
+                                            radius: height / 8
+                                            visible: false
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: instructionText
+                                            }
+                                        }
+                                    }
+                                    coordinate: parent.coordinate
+                                    anchorPoint.x: rct.width/8
+                                    anchorPoint.y: rct.height
+                                }
+                            }
                         }
                     }
                 }
-            }
+
+
+//            MapItemView {
+//                id: routeManeuversView
+//                model: routeModel
+//                visible: showManeuvers.checked
+//                delegate: Component {
+//                    MapItemView {
+//                        id: segsView
+//                        property var mColor: vecBrewer12[index % 12 ]
+//                        Component.onCompleted: console.log("IDX: ",index)
+//                        property var route: routeData
+//                        model: (showManeuvers.checked) ? route.segments : null
+//                        delegate: MapQuickItem {
+//                            sourceItem: Rectangle {
+//                                    width: 64
+//                                    height: 64
+//                                    color: "transparent"
+//                                    border.color: "transparent"
+//                                    property var markerColor:  mColor
+////                                    Component.onCompleted: console.log(markerColor)
+//                                    PositionMarker {
+//                                        rotation: 180
+//                                        transformOrigin: Item.Center
+//                                        width: 64
+//                                        height: 64
+//                                        color: parent.markerColor
+//                                        tip: true
+//                                }
+//                            }
+//                            property var maneuver: modelData.maneuver
+//                            coordinate: maneuver.position
+//                            anchorPoint.x: redMarker.width/2
+//                            anchorPoint.y: redMarker.height
+//                        }
+//                    }
+//                }
+//            }
 
 //            MapItemView {
 //                id: routeViewOrig
 //                model: routeModel
-//                visible: !showSegs.checked
+//                visible: showSegs.checked
 ////                visible: false
 //                delegate: MapRoute {
 //                    route: routeData
@@ -513,11 +560,29 @@ ApplicationWindow {
                 visible: !showSegs.checked
 //                visible: false
                 model: routeModel
+                add: null
+                remove: Transition {
+                    NumberAnimation {
+                        property: "opacity"
+                        to: 0.0
+                        duration: 32
+                        easing.type: Easing.OutExpo
+                    }
+                }
                 delegate: Component {
                     MapItemView {
                         id: legView
                         property var route: routeData
-                        model: route.legs
+                        model: (!showSegs.checked) ? (route !== null) ? route.legs : null : null
+                        add: null
+                        remove: Transition {
+                            NumberAnimation {
+                                property: "opacity"
+                                to: 0.0
+                                duration: 32
+                                easing.type: Easing.OutExpo
+                            }
+                        }
                         Component.onCompleted: {
                             console.log(route)
                             console.log(route.distance)
@@ -531,7 +596,9 @@ ApplicationWindow {
 
                             route: modelData
                             //line.color: 'blue'
-                            line.color: vecBrewer12[index % 12 ]
+                            line.color: vecBrewer12[index % 12 ] // necessary so that qrc:/main.qml:553:29: Unable to assign [undefined] to QColor is emitted
+                                                                 // Or else a valid delegate with wrong color will be instantiated
+                            //line.color: (index !== undefined && index >= 0) ? vecBrewer12[index % 12 ] : "transparent"
                             line.width: 7
                             property int dumpPathRequester: appWindow.dumpPathRequester
 //                            opacity: (index === 0) ? 1.0 : 0.3
@@ -546,6 +613,81 @@ ApplicationWindow {
                 }
             }
 
+            MapQuickItem {
+                id: startMarker
+                sourceItem: Image {
+                    id: redMarker
+                    source: "qrc:///redMarker.png"
+                }
+                //coordinate : QtPositioning.coordinate(59.9485, 10.7686)
+                coordinate: QtPositioning.coordinate(52.51550887681485,13.367023512340722)
+                visible: true
+                opacity: 1.0
+                anchorPoint.x: redMarker.width/2
+                anchorPoint.y: redMarker.height
+                MouseArea  {
+                    id: startMarkerMouseArea
+                    drag.target: parent
+                    anchors.fill: parent
+                }
+
+                onCoordinateChanged: {
+                    updateRoute()
+                }
+            }
+
+            MapQuickItem {
+                id: endMarker
+                sourceItem: Image {
+                    id: greenMarker
+                    source: "qrc:///greenMarker.png"
+                }
+                //coordinate : QtPositioning.coordinate(51.34335, 12.37949) // Leipzig Richard Wagner Strasse
+                //coordinate: QtPositioning.coordinate(53.2621052,15.4868928)
+                coordinate: QtPositioning.coordinate(52.51717600051018,13.449882462386313)
+                visible: true
+                opacity: 1.0
+                anchorPoint.x: greenMarker.width/2
+                anchorPoint.y: greenMarker.height
+                MouseArea  {
+                    id: endMarkerMouseArea
+                    drag.target: parent
+                    anchors.fill: parent
+                }
+
+                onCoordinateChanged: {
+                    updateRoute()
+                }
+            }
+
+            MapItemView {
+                id: middleMarkerView
+                model: middleMarkerModel
+                delegate: MapQuickItem {
+                    id: midMarker
+                    sourceItem: Image {
+                        id: grayMarker
+                        source: "qrc:///grayMarker.png"
+                    }
+                    coordinate : QtPositioning.coordinate(latitude, longitude)
+                    anchorPoint.x: grayMarker.width/2
+                    anchorPoint.y: grayMarker.height
+                    MouseArea  {
+                        id: middleMarkerMouseArea
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        anchors.fill: parent
+                        onDoubleClicked: {
+                            if (mouse.button & Qt.RightButton)
+                                return
+                            middleMarkerModel.remove(index)
+                        }
+                        drag.target: parent
+                    }
+                    onCoordinateChanged: {
+                        middleMarkerModel.set(index, { latitude: coordinate.latitude, longitude: coordinate.longitude})
+                    }
+                }
+            }
         }
     }
 
@@ -569,7 +711,8 @@ ApplicationWindow {
         id: routeModelComponent
         RouteModel {
             id: rModel
-            autoUpdate: true
+//            autoUpdate: true
+            autoUpdate: false
             query: routeQuery
             Component.onCompleted: {
                 rModel.routesChanged.connect(routeInfoModel.updateRoute)
@@ -628,7 +771,7 @@ ApplicationWindow {
         console.log("QUERY WAYPOINTS")
         var wpts = q.waypoints
         for (var i = 0; i < wpts.length; i++)
-            console.log(wpts[i])
+            console.log("QtPositioning.coordinate("+wpts[i].latitude+","+wpts[i].longitude+")")
     }
 
     ListModel {
@@ -688,6 +831,13 @@ ApplicationWindow {
             }
             totalTravelTime = routeModel.count === 0 ? "" : formatTime(routeModel.get(0).travelTime)
             totalDistance = routeModel.count === 0 ? "" : formatDistance(routeModel.get(0).distance)
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+P"
+        onActivated: {
+            debugRouteQuery(routeQuery)
         }
     }
 }

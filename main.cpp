@@ -189,7 +189,12 @@ int main(int argc, char *argv[])
         parameters["here.token"] = QLatin1String(hereToken.constData());
 
     parameters["mapbox.routing.use_mapbox_text_instructions"] = false;
+    parameters["openaccess.mapping.prefetching_style"] = "NoPrefetching";
+    parameters["openaccess.mapping.providers.address"] =
+            "file:///media/paolo/qdata/home/paolo/Qt/Location/playground/tmsServers.git/providers.json";
 
+    parameters["openaccess.thunderforest.apikey"] = "6a5033992b164888b01541ff3c21b0a8"; // mine
+    parameters["openaccess.thunderforest.apikey"] = "7c352c8ff1244dd8b732e349e0b0fe8d"; // thunderforest.com
 
     if (parseArgs(args, parameters))
         return 0;
